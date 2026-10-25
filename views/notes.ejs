@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,100..900;1,100..900&family=Nunito:ital,wght@0,200..1000;1,200..1000&family=Smokum&family=Titan+One&display=swap" rel="stylesheet">
+ 
+  <title>Journal Notes</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <header>
+    <h1>Private Journal</h1>
+    <!-- user came from the route, user.local.email is the email on your account -->
+    <p>Logged in as <%= user.local.email %></p>
+    <a href="/logout">Logout</a>
+  </header>
+
+
+  <!-- the form posts the new note to /notes, the name on each input becomes the key in req.body -->
+  <form action="/notes" method="POST">
+    <input type="text" name="title" placeholder="Note title">
+    <textarea name="text" placeholder="Write your note here"></textarea>
+    <!-- pick one mood, the radio that is checked sends its value as req.body.mood -->
+    <div class="mood-picker">
+      <label class="mood-option mood-blank"><input type="radio" name="mood" value="blank" checked> 😐</label>
+      <label class="mood-option mood-happy"><input type="radio" name="mood" value="happy"> 🙂</label>
+      <label class="mood-option mood-sad"><input type="radio" name="mood" value="sad"> 🙁</label>
+    </div>
+    <!-- the date input sends req.body.date, always in the same format -->
+    <input type="date" name="date">
+    <button type="submit">Log Note</button> <!-- this button works through the ejs file, and doesnt need the front end click functionality-->
+  </form>
+
+  <h2>Your Notes</h2>
+
+  <!-- tiny lookup, give it the mood word stored on the note, it hands back the face -->
+  <% const faces = { blank: '😐', happy: '🙂', sad: '🙁' } %>
+
+  <!-- the loop runs once per note and builds one card each time -->
+  <ul class="notes">
+    <% for (let i = 0; i < notes.length; i++) { %>
+      <li class="note">
+        <h3><%= notes[i].title %></h3> <br>  <!-- four parameters within the document object now, title, text, mood and date -->
+        <!-- old notes have no mood saved yet, so || 'blank' gives them the grey face instead of breaking -->
+        <span class="mood mood-<%= notes[i].mood || 'blank' %>"><%= faces[notes[i].mood] || '😐' %></span>
+        <span class="date"><%= notes[i].date %></span> <br>
+        <p>~ <%= notes[i].text %></p> <br>
+        <!-- the buttons carry the note's id in data-id so main.js knows which note got clicked -->
+        <!-- type="button" and outside the form, same lesson as the halal eats update bug -->
+        <button type="button" class="update-note" data-id="<%= notes[i]._id %>">Update</button> <!-- these two buttons will have their own functionality from the front end-->
+        <!-- the mood button carries the current mood too, so main.js knows what the next mood in the cycle is -->
+        <button type="button" class="update-mood" data-id="<%= notes[i]._id %>" data-mood="<%= notes[i].mood || 'blank' %>">Mood</button>
+        <button type="button" class="delete-note delete-x" data-id="<%= notes[i]._id %>" aria-label="Delete note">×</button>
+
+      </li>
+    <% } %>
+  </ul>
+
+  <script src="/main.js"></script>
+</body>
+</html>

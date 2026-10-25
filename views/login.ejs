@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head>
+    <title>Login</title>
+    <link rel="stylesheet" href="/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet">
+</head>
+<body>
+    <h1>Login</h1>
+
+    <% if (message.length > 0) { %>
+        <div class="message"><%= message %></div>
+    <% } %>
+
+    <form action="/login" method="post">
+        <label>Email</label>
+        <input type="text" name="email">
+        <label>Password</label>
+        <input type="password" name="password">
+        <button type="submit">Login</button>
+    </form>
+
+    <p>Need an account? <a href="/signup">Signup</a></p>
+    <p>Or go <a href="/">home</a>.</p>
+</body>
+</html>
