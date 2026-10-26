@@ -3,8 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="/style.css">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
   <title>Workout Log</title>
-  <link rel="stylesheet" href="/css/style.css">
+  
 </head>
 <body>
   <header class="topbar">
@@ -17,6 +21,16 @@
 
   <main class="log">
     <section class="log-intro">
+            <section class="stats-strip">
+      <div class="stat">
+        <span class="stat-number"><%= stats.sessions %></span>
+        <span class="stat-label">Sessions logged</span>
+      </div>
+      <div class="stat">
+        <span class="stat-number"><%= stats.totalVolume.toLocaleString() %></span>
+        <span class="stat-label">Total lbs moved</span>
+      </div>
+    </section>
       <h2>Your training log</h2>
       <p>Every set you put in, on the record.</p>
     </section>
@@ -71,6 +85,32 @@
 
       <button type="submit">Log workout</button>
     </form>
+
+        <section class="workout-list">
+      <% if (workouts.length === 0) { %>
+        <p class="empty-state">No workouts yet. Log your first session above.</p>
+      <% } %>
+
+      <% workouts.forEach(function (workout) { %>
+        <article class="workout-card" data-effort="<%= workout.effort %>">
+          <header class="card-head">
+            <span class="category-tag"><%= workout.category %></span>
+            <time class="card-date"><%= workout.displayDate %></time>
+          </header>
+          <h3 class="card-exercise"><%= workout.exercise %></h3>
+          <p class="card-line"><%= workout.sets %> × <%= workout.reps %> @ <%= workout.weight %> lbs</p>
+          <p class="card-volume"><%= workout.volume.toLocaleString() %> <span>lbs volume</span></p>
+          <p class="card-effort">Effort <%= workout.effort %>/10</p>
+          <% if (workout.note) { %>
+            <p class="card-note"><%= workout.note %></p>
+          <% } %>
+          <a class="card-edit" href="/workouts/<%= workout._id %>/edit">Edit</a>
+          <button type="button" class="card-delete" data-id="<%= workout._id %>">Delete</button>
+        </article>
+      <% }) %>
+    </section>
+    <script src="/main.js"></script>
   </main>
+  
 </body>
 </html>

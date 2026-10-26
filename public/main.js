@@ -1,95 +1,78 @@
-var updateButtons = document.querySelectorAll('.update-note')
-var deleteButtons = document.querySelectorAll('.delete-note')
+// grab the edit form and the empty error list, both are null on pages without them
+const editForm = document.querySelector('#edit-workout-form')
+const errorList = document.querySelector('#edit-errors')
 
-Array.from(updateButtons).forEach(function (button) {
-  button.addEventListener('click', function () {
-    var id = this.dataset.id
-    var text = prompt('Update your note:')
-    if (text === null || text === '') return
-    fetch('/notes', {
-      method: 'put',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: id, text: text })
-    }).then(function (response) {
-      if (response.ok) window.location.reload()
-    })
+// only wire up the form if this page actually has one
+if (editForm) {
+  editForm.addEventListener('submit', async (event) => {
+    // stop the browser's normal submit, we're sending a PUT ourselves
+    event.preventDefault()
+
+    // turn every field in the form into a plain object like { exercise: 'Deadlift', sets: '4' }
+    const data = Object.fromEntries(new FormData(editForm))
+
+    try {
+      // send the changes to the route for this workout's id
+      const response = await fetch(`/workouts/${editForm.dataset.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+
+      // 2xx status means it saved, go back to the log
+      if (response.ok) {
+        window.location.href = '/workouts'
+        return
+      }
+
+      // anything else, read the error messages and show them
+      const result = await response.json()
+      showErrors(result.errors)
+    } catch (err) {
+      // fetch itself failed, usually the server is down
+      showErrors(['Could not reach the server. Is it running?'])
+    }
   })
-})
+}
 
-Array.from(deleteButtons).forEach(function (button) {
-  button.addEventListener('click', function () {
-    var id = this.dataset.id
-    if (!confirm('Delete this note?')) return
-    fetch('/notes', {
-      method: 'delete',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: id })
-    }).then(function (response) {
-      if (response.ok) window.location.reload()
-    })
-  })// grab every button on the page by its class, the classes come from notes.ejs
-const updateButtons = document.querySelectorAll('.update-note')
-const deleteButtons = document.querySelectorAll('.delete-note')
-const moodButtons = document.querySelectorAll('.update-mood')
-
-// go through the update buttons one by one and give each one a click job
-Array.from(updateButtons).forEach(function (button) {
-  button.addEventListener('click', function () {
-    // the id of the note that owns this button, stamped on it in data-id
-    const id = this.dataset.id
-    // ask me for the new text, the answer lands in text
-    const text = prompt('Update your note:')
-    // if i cancel or leave it empty, stop here, change nothing
-    if (text === null || text === '') return
-    // send the id and the new text to the put route as json
-    fetch('/notes', {
-      method: 'put',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: id, text: text })
-    }).then(function (response) {
-      // server said ok, reload so the list shows what is really in the database
-      if (response.ok) window.location.reload()
-    })
+// fill the error list with one line per message and make it visible
+function showErrors(messages) {
+  errorList.innerHTML = ''
+  messages.forEach((message) => {
+    const item = document.createElement('li')
+    // textContent, not innerHTML, so a message can never inject html into the page
+    item.textContent = message
+    errorList.appendChild(item)
   })
-})
+  errorList.hidden = false
+}
 
-// same idea for the delete buttons, these are the X icons on each card now
-Array.from(deleteButtons).forEach(function (button) {
-  button.addEventListener('click', function () {
-    const id = this.dataset.id
-    // ask first, if i say no, stop here
-    if (!confirm('Delete this note?')) return
-    // delete only needs the id, the server double checks the note is mine
-    fetch('/notes', {
-      method: 'delete',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: id })
-    }).then(function (response) {
-      if (response.ok) window.location.reload()
-    })
+// one listener on the whole list instead of one per button
+const workoutList = document.querySelector('.workout-list')
+
+// only wire this up on pages that have the list
+if (workoutList) {
+  workoutList.addEventListener('click', async (event) => {
+    // find the delete button that was clicked, null if the click was somewhere else
+    const deleteButton = event.target.closest('.card-delete')
+    if (!deleteButton) return
+
+    // read the exercise name off the same card so the question is specific
+    const card = deleteButton.closest('.workout-card')
+    const exercise = card.querySelector('.card-exercise').textContent
+    if (!confirm(`Delete this ${exercise} session? This cannot be undone.`)) return
+
+    try {
+      const response = await fetch(`/workouts/${deleteButton.dataset.id}`, { method: 'DELETE' })
+      if (response.ok) {
+        // reload so the list, the empty state and later the stats all stay accurate
+        window.location.reload()
+        return
+      }
+      const result = await response.json()
+      alert(result.errors.join('\n'))
+    } catch (err) {
+      alert('Could not reach the server. Is it running?')
+    }
   })
-})
-
-// the mood buttons, each click moves the mood one step in the cycle
-Array.from(moodButtons).forEach(function (button) {
-  button.addEventListener('click', function () {
-    const id = this.dataset.id
-    // the mood this note is wearing right now, stamped on the button in data-mood
-    const current = this.dataset.mood
-    // work out the next mood, blank goes to happy, happy goes to sad, sad wraps back to blank
-    let next = 'blank'
-    if (current === 'blank') next = 'happy'
-    if (current === 'happy') next = 'sad'
-    if (current === 'sad') next = 'blank'
-    // send it to the mood route, that route only touches the mood and nothing else
-    fetch('/notes/mood', {
-      method: 'put',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: id, mood: next })
-    }).then(function (response) {
-      if (response.ok) window.location.reload()
-    })
-  })
-})
-
-})
+}

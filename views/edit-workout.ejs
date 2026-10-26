@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/style.css">
+  <title>Edit Workout | Workout Log</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="brand">Workout Log</h1>
+    <nav class="topbar-actions">
+      <span class="user-email"><%= user.local.email %></span>
+      <a class="logout" href="/logout">Log out</a>
+    </nav>
+  </header>
+
+  <main class="log">
+    <a class="back-link" href="/workouts">← Back to your log</a>
+    <h2>Edit workout</h2>
+
+    <ul class="form-errors" id="edit-errors" hidden></ul>
+
+    <form class="workout-form" id="edit-workout-form" data-id="<%= workout._id %>">
+      <label>Exercise
+        <input type="text" name="exercise" maxlength="60" value="<%= workout.exercise %>" required>
+      </label>
+
+      <label>Category
+        <select name="category" required>
+          <% categories.forEach(function (category) { %>
+            <option value="<%= category %>" <%= category === workout.category ? 'selected' : '' %>><%= category %></option>
+          <% }) %>
+        </select>
+      </label>
+
+      <label>Sets
+        <input type="number" name="sets" min="1" max="50" value="<%= workout.sets %>" required>
+      </label>
+
+      <label>Reps
+        <input type="number" name="reps" min="1" max="500" value="<%= workout.reps %>" required>
+      </label>
+
+      <label>Weight (lbs)
+        <input type="number" name="weight" min="0" max="2000" value="<%= workout.weight %>" required>
+      </label>
+
+      <label>Effort (1–10)
+        <input type="number" name="effort" min="1" max="10" value="<%= workout.effort %>" required>
+      </label>
+
+      <label>Date
+        <input type="date" name="date" value="<%= workout.inputDate %>">
+      </label>
+
+      <label>Note
+        <textarea name="note" maxlength="200"><%= workout.note %></textarea>
+      </label>
+
+      <button type="submit">Save changes</button>
+    </form>
+  </main>
+  <script src="/main.js"></script>
+</body>
+</html>

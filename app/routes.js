@@ -1,6 +1,4 @@
-// grab the ObjectId tool out of the mongodb box, same destructuring as halal eats
-// the browser sends ids as plain text, this turns them back into real ids so mongo can match them
-const { ObjectId } = require('mongodb')
+
 
 // the Workout model from step 3, every workout save and lookup goes through its rules
 const Workout = require('./models/workout')
@@ -14,28 +12,30 @@ module.exports = function (app, passport, db) {
     res.render('index.ejs');
   });
 
-  // NOTES SECTION ========================= (cahnged the profile.ejs to be notes, so i made the url appropriate to the project theme)
-  // changed: this was /profile, and it showed every message on the board to everyone
-  // now it finds only the notes stamped with the logged in user's id (makes it more private and personal, compared to the savage auth where everyone was able to see eachothers posted documents)
-  app.get('/notes', isLoggedIn, function (req, res) { // LoggedIn is defined on the bottom, already utilized by savage auth and it checks if there is an account made, and signed in, if there isnt then passport cannot run and req.user doesnt exist so it would crash
-    db.collection('notes').find({ user: req.user._id.toString() }).toArray((err, result) => {
-      if (err) return console.log(err)
-      // build the notes page and hand it the user and their notes
-      res.render('notes.ejs', {
-        user: req.user,
-        notes: result
-      })
-    })
-  });
-  // WORKOUTS SECTION =========================
-  // the logged in user's training log, isLoggedIn bounces anyone without a session
-  app.get('/workouts', isLoggedIn, function (req, res) {
-    res.render('workouts.ejs', {
-      user: req.user,
-      // any messages saved by a failed create, empty array if none
-      errors: req.flash('workoutError')
-    })
-  });
+  
+         // WORKOUTS SECTION =========================
+    // the logged in user's training log, only their workouts, newest first
+    app.get('/workouts', isLoggedIn, async (req, res) => {
+      try {
+        // the filter is the privacy: only workouts stamped with this user's id
+        const workouts = await Workout.find({ user: req.user._id })
+          .sort({ date: -1, createdAt: -1 })
+                // totals for the stats strip, volume comes from the model virtual
+        const stats = {
+          sessions: workouts.length,
+          totalVolume: workouts.reduce((sum, workout) => sum + workout.volume, 0)
+        }
+        res.render('workouts.ejs', {
+          user: req.user,
+          workouts: workouts,
+          stats: stats,
+          errors: req.flash('workoutError')
+        })
+      } catch (err) {
+        console.log(err)
+        res.status(500).send('Something went wrong loading your workouts.')
+      }
+    });
 
       // save a new workout for the logged in user
     // async because Workout.create returns a promise we wait on
@@ -67,7 +67,85 @@ module.exports = function (app, passport, db) {
         res.status(500).send('Something went wrong saving that workout.')
       }
     })
-    
+
+        // show the edit page for one workout, but only if it belongs to the logged in user
+    app.get('/workouts/:id/edit', isLoggedIn, async (req, res) => {
+      try {
+        // id from the url AND owner from the session, both must match
+        const workout = await Workout.findOne({ _id: req.params.id, user: req.user._id })
+        // no match means it doesn't exist or it isn't yours, same answer either way
+        if (!workout) return res.status(404).send('Workout not found.')
+        res.render('edit-workout.ejs', {
+          user: req.user,
+          workout: workout,
+          // the category list comes straight from the model, so there's one source of truth
+          categories: Workout.schema.path('category').enumValues
+        })
+      } catch (err) {
+        // a garbled id like /workouts/abc/edit can't become an ObjectId, treat it as not found
+        if (err.name === 'CastError') return res.status(404).send('Workout not found.')
+        console.log(err)
+        res.status(500).send('Something went wrong loading that workout.')
+      }
+    })
+
+        // save changes to one workout, owner only, with the same rules as create
+    app.put('/workouts/:id', isLoggedIn, async (req, res) => {
+      // only these fields can change, the owner stamp is never taken from the browser
+      const changes = {
+        exercise: req.body.exercise,
+        category: req.body.category,
+        sets: req.body.sets,
+        reps: req.body.reps,
+        weight: req.body.weight,
+        effort: req.body.effort,
+        note: req.body.note
+      }
+      // only touch the date if one was sent, an empty box keeps the old date
+      if (req.body.date) changes.date = req.body.date
+
+      try {
+        const workout = await Workout.findOneAndUpdate(
+          // which workout: this id AND this owner
+          { _id: req.params.id, user: req.user._id },
+          // what to change
+          changes,
+          // new: hand back the updated version, runValidators: enforce the schema rules on updates too
+          { new: true, runValidators: true }
+        )
+        if (!workout) return res.status(404).json({ errors: ['Workout not found.'] })
+        res.json({ ok: true })
+      } catch (err) {
+        if (err.name === 'ValidationError') {
+          const messages = Object.values(err.errors).map(e => e.message)
+          return res.status(400).json({ errors: messages })
+        }
+        // a bad id in the url is a 404, a bad value in a field like sets is a 400
+        if (err.name === 'CastError' && err.path === '_id') {
+          return res.status(404).json({ errors: ['Workout not found.'] })
+        }
+        if (err.name === 'CastError') {
+          return res.status(400).json({ errors: [`Check the ${err.path} field.`] })
+        }
+        console.log(err)
+        res.status(500).json({ errors: ['Something went wrong saving your changes.'] })
+      }
+    })
+
+        // delete one workout, owner only
+    app.delete('/workouts/:id', isLoggedIn, async (req, res) => {
+      try {
+        // same double check as edit: this id AND this owner
+        const workout = await Workout.findOneAndDelete({ _id: req.params.id, user: req.user._id })
+        if (!workout) return res.status(404).json({ errors: ['Workout not found.'] })
+        res.json({ ok: true })
+      } catch (err) {
+        if (err.name === 'CastError') return res.status(404).json({ errors: ['Workout not found.'] })
+        console.log(err)
+        res.status(500).json({ errors: ['Something went wrong deleting that workout.'] })
+      }
+    })
+
   // LOGOUT ==============================
   // same as the savage.auth, untouched 
   app.get('/logout', function (req, res) {
@@ -77,63 +155,7 @@ module.exports = function (app, passport, db) {
     res.redirect('/');
   });
 
-  // notes routes ===============================================================
-  // changed: everything in this section was /messages with thumbs up and thumbs down before
-  // not using messages because i wanted to personalize it,
-  //  also removed the thumbs up and thumbs down route because i wont be using a likes functionality, 
-  // just updating the content in each document rather than the amount of likes
 
-
-  // save a new note in the notes box
-  // the user stamp comes from passport knowing who is logged in, the browser never sends it
-  // mood and date ride along now, they come from the picker and the date input in the form
-  app.post('/notes', isLoggedIn, (req, res) => {
-    db.collection('notes').insertOne({ title: req.body.title, text: req.body.text, mood: req.body.mood, date: req.body.date, user: req.user._id.toString() }, (err, result) => {
-      if (err) return console.log(err)
-      console.log('saved to database')
-      // send them back to the notes page so they see the new note in the list
-      res.redirect('/notes')
-    })
-  })
-
-  // find one note and change its text
-  // the id picks the exact note, the user stamp makes sure it belongs to your account
-  app.put('/notes', isLoggedIn, (req, res) => {
-    db.collection('notes')
-      .findOneAndUpdate({ _id: new ObjectId(req.body.id), user: req.user._id.toString() }, {
-        // $set changes only the text and leaves the title and stamp alone
-        $set: {
-          text: req.body.text
-        }
-      }, (err, result) => {
-        if (err) return res.send(err)
-        res.send(result)
-      })
-  })
-
-  // find one note and change only its mood
-  // this route belongs to the mood button alone, kept separate from the text update on purpose
-  // the front end works out what the next mood in the cycle is and sends it here to be saved
-  app.put('/notes/mood', isLoggedIn, (req, res) => {
-    db.collection('notes')
-      .findOneAndUpdate({ _id: new ObjectId(req.body.id), user: req.user._id.toString() }, {
-        // $set changes only the mood and leaves the text, title and stamp alone
-        $set: {
-          mood: req.body.mood
-        }
-      }, (err, result) => {
-        if (err) return res.send(err)
-        res.send(result)
-      })
-  })
-
-  // find one note and delete it, same double check as update
-  app.delete('/notes', isLoggedIn, (req, res) => {
-    db.collection('notes').findOneAndDelete({ _id: new ObjectId(req.body.id), user: req.user._id.toString() }, (err, result) => {
-      if (err) return res.send(500, err)
-      res.send('Note deleted!')
-    })
-  })
 
   // =============================================================================
   // AUTHENTICATE (FIRST LOGIN) ==================================================    copied this from savage auth (i copied the file structure from savage auth as well)
