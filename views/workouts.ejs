@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workout Log</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="brand">Workout Log</h1>
+    <nav class="topbar-actions">
+      <span class="user-email"><%= user.local.email %></span>
+      <a class="logout" href="/logout">Log out</a>
+    </nav>
+  </header>
+
+  <main class="log">
+    <section class="log-intro">
+      <h2>Your training log</h2>
+      <p>Every set you put in, on the record.</p>
+    </section>
+
+    <% if (errors.length) { %>
+      <ul class="form-errors">
+        <% errors.forEach(function (message) { %>
+          <li><%= message %></li>
+        <% }) %>
+      </ul>
+    <% } %>
+
+    <form class="workout-form" action="/workouts" method="POST">
+      <label>Exercise
+        <input type="text" name="exercise" maxlength="60" placeholder="Deadlift" required>
+      </label>
+
+      <label>Category
+        <select name="category" required>
+          <option value="">Choose one</option>
+          <option value="Push">Push</option>
+          <option value="Pull">Pull</option>
+          <option value="Legs">Legs</option>
+          <option value="Core">Core</option>
+          <option value="Conditioning">Conditioning</option>
+        </select>
+      </label>
+
+      <label>Sets
+        <input type="number" name="sets" min="1" max="50" required>
+      </label>
+
+      <label>Reps
+        <input type="number" name="reps" min="1" max="500" required>
+      </label>
+
+      <label>Weight (lbs)
+        <input type="number" name="weight" min="0" max="2000" value="0" required>
+      </label>
+
+      <label>Effort (1–10)
+        <input type="number" name="effort" min="1" max="10" required>
+      </label>
+
+      <label>Date
+        <input type="date" name="date">
+      </label>
+
+      <label>Note
+        <textarea name="note" maxlength="200" placeholder="Grip gave out on set 4"></textarea>
+      </label>
+
+      <button type="submit">Log workout</button>
+    </form>
+  </main>
+</body>
+</html>

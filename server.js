@@ -1,11 +1,13 @@
 // server.js
 
+// load the .env locker first, before anything asks for process.env
+require('dotenv').config();
+
 // set up ======================================================================
 // get all the tools we need
- express  = require('express');
+const express  = require('express');
 const app      = express();
-const port     = process.env.PORT || 8020;
-require('dotenv').config();
+const port     = process.env.PORT || 8030;
 
 const mongoose = require('mongoose');
 const passport = require('passport');
@@ -18,17 +20,19 @@ const session      = require('express-session');
 
 const configDB = require('./config/database.js');
 
-
-
 let db
 
 // configuration ===============================================================
-mongoose.connect(configDB.url, (err, database) => {
+// connect to the cluster, and use dbName to pick the Workout-Log database inside it
+mongoose.connect(configDB.url, { dbName: configDB.dbName }, (err) => {
   if (err) return console.log(err)
-  db = database
+  // ask mongoose for the raw database it opened, this one has .collection() like Halal Eats
+  db = mongoose.connection.db
+  // print the name so we can see which database we actually landed in
+  console.log('Connected to database:', db.databaseName)
+  // routes only get wired up once the database is ready
   require('./app/routes.js')(app, passport, db);
-}); // connect to our database
-
+});
 require('./config/passport')(passport); // pass passport for configuration
 
 // set up our express application
